@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>பி.ஆர்.ஐ சந்தை பகுப்பாய்வு - நேரடி கருவி</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --bg: #f4f7f6;
+            --card: #fff;
+            --buy: #27ae60;
+            --sell: #c0392b;
+            --wait: #f39c12;
+            --shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        
+        /* Header & Time */
+        header { text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #ddd; }
+        h1 { color: var(--primary); margin-bottom: 5px; }
+        .live-clock { font-size: 1.1rem; color: #555; font-weight: bold; background: #e8f6f3; display: inline-block; padding: 5px 15px; border-radius: 20px; border: 1px solid #d4efdf; }
+
+        /* Upload Section */
+        .upload-area {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+        }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.9rem; color: #666; font-weight: bold; }
+        .input-group input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .btn-analyze { 
+            background-color: var(--accent-color, #3498db); color: white; border: none; 
+            padding: 10px 25px; border-radius: 5px; cursor: pointer; font-size: 1rem; 
+            height: 42px; font-weight: bold; transition: background 0.3s;
+        }
+        .btn-analyze:hover { background-color: #2980b9; }
+
+        /* Dashboard */
+        .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: var(--card); padding: 15px; border-radius: 8px; text-align: center; box-shadow: var(--shadow); cursor: pointer; border-top: 4px solid #ccc; transition: 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-card.active { background: #eef2f3; border: 2px solid #3498db; }
+        .stat-card h3 { font-size: 0.9rem; color: #666; margin: 0; }
+        .stat-card .count { font-size: 1.8rem; font-weight: bold; }
+        
+        .card-buy { border-color: var(--buy); } .card-buy .count { color: var(--buy); }
+        .card-sell { border-color: var(--sell); } .card-sell .count { color: var(--sell); }
+        .card-wait { border-color: var(--wait); } .card-wait .count { color: var(--wait); }
+
+        /* Report Table */
+        .report-section { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: var(--shadow); display: none; }
+        .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        
+        button.btn-wa { background: #25D366; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button.btn-print { background: #34495e; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #555; }
+        .badge { padding: 3px 8px; border-radius: 4px; color: white; font-size: 0.8rem; }
+        .pos-chg { color: var(--buy); font-weight: bold; }
+        .neg-chg { color: var(--sell); font-weight: bold; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .upload-area { grid-template-columns: 1fr; }
+            .btn-analyze { width: 100%; margin-top: 10px; }
+            .dashboard { grid-template-columns: 1fr 1fr; }
+        }
+        @media print { 
+            .upload-area, .dashboard, .btn-wa, .btn-print, header > h1 { display: none !important; } 
+            .live-clock { display: block; }
+            body { background: white; padding: 0; } 
+            .report-section { display: block !important; box-shadow: none; } 
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>பி.ஆர்.ஐ சந்தை பகுப்பாய்வு</h1>
+        <div class="live-clock" id="liveClock">நேரம் ஏற்றுகிறது...</div>
+    </header>
+
+    <!-- File Upload Section -->
+    <div class="upload-area">
+        <div class="input-group">
+            <label for="file1">முந்தைய தரவு (Previous CSV)</label>
+            <input type="file" id="file1" accept=".csv">
+        </div>
+        <div class="input-group">
+            <label for="file2">தற்போதைய தரவு (Current CSV)</label>
+            <input type="file" id="file2" accept=".csv">
+        </div>
+        <button class="btn-analyze" onclick="analyzeData()">பகுப்பாய்வு செய் (Analyze)</button>
+    </div>
+
+    <!-- Stats Dashboard -->
+    <div class="dashboard">
+        <div class="stat-card card-buy" onclick="showTable('BUY')">
+            <h3>வாங்க (BUY)</h3>
+            <div class="count" id="count-buy">0</div>
+        </div>
+        <div class="stat-card card-sell" onclick="showTable('SELL')">
+            <h3>விற்க (SELL)</h3>
+            <div class="count" id="count-sell">0</div>
+        </div>
+        <div class="stat-card card-wait" onclick="showTable('WAIT')">
+            <h3>காத்திரு (WAIT)</h3>
+            <div class="count" id="count-wait">0</div>
+        </div>
+    </div>
+
+    <!-- Report Table -->
+    <div class="report-section" id="reportSection">
+        <div class="report-header">
+            <h2 id="reportTitle">வாங்க (BUY) பட்டியல்</h2>
+            <div>
+                <button class="btn-wa" onclick="shareWA()">WhatsApp</button>
+                <button class="btn-print" onclick="window.print()">Print</button>
+            </div>
+        </div>
+        <div style="overflow-x:auto;">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>சின்னம்</th>
+                        <th>முந்தைய விலை</th>
+                        <th>தற்போதைய விலை</th>
+                        <th>காரணம் (மாற்றம் %)</th>
+                        <th>இலக்கு</th>
+                        <th>ஸ்டாப்லாஸ்</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Live Clock Function
+    function updateClock() {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        document.getElementById('liveClock').innerText = now.toLocaleString('ta-IN', options);
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Global Data
+    let processedData = [];
+    let currentFilter = 'BUY';
+
+    // 2. Read File Helper
+    function readFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file);
+        });
+    }
+
+    // 3. CSV Parser
+    function parseCSV(text) {
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) return [];
+        
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        // Find indices dynamically (LTP or Price)
+        const symbolIdx = headers.findIndex(h => h.includes('symbol') || h.includes('name'));
+        const priceIdx = headers.findIndex(h => h.includes('ltp') || h.includes('price') || h.includes('close'));
+
+        if (symbolIdx === -1 || priceIdx === -1) {
+            alert("CSV இல் 'Symbol' மற்றும் 'LTP' (அல்லது Price) தலைப்புகள் இல்லை.");
+            return [];
+        }
+
+        const data = [];
+        for (let i = 1; i < lines.length; i++) {
+            const row = lines[i].split(',');
+            if (row.length < headers.length) continue;
+            
+            const price = parseFloat(row[priceIdx]);
+            const symbol = row[symbolIdx].trim();
+
+            if (!isNaN(price)) {
+                data.push({ symbol, price });
+            }
+        }
+        return data;
+    }
+
+    // 4. Analysis Logic
+    async function analyzeData() {
+        const file1 = document.getElementById('file1').files[0];
+        const file2 = document.getElementById('file2').files[0];
+
+        if (!file1 || !file2) {
+            alert("தயவு செய்து இரண்டு CSV கோப்புகளையும் தேர்வு செய்யவும்.");
+            return;
+        }
+
+        try {
+            const text1 = await readFile(file1);
+            const text2 = await readFile(file2);
+
+            const data1 = parseCSV(text1);
+            const data2 = parseCSV(text2);
+
+            if (data1.length === 0 || data2.length === 0) return;
+
+            // Create Map for fast lookup
+            const map1 = new Map();
+            data1.forEach(d => map1.set(d.symbol.toUpperCase(), d.price));
+
+            processedData = [];
+            let buy = 0, sell = 0, wait = 0;
+
+            data2.forEach(d => {
+                const symbol = d.symbol.toUpperCase();
+                const prevPrice = map1.get(symbol);
+                const currPrice = d.price;
+
+                if (prevPrice) {
+                    const changePercent = ((currPrice - prevPrice) / prevPrice) * 100;
+                    
+                    let signal = 'WAIT';
+                    let target = '-';
+                    let stopLoss = '-';
+
+                    // Logic
+                    if (changePercent > 1.0) {
+                        signal = 'BUY';
+                        target = (currPrice * 1.05).toFixed(2);
+                        stopLoss = (currPrice * 0.98).toFixed(2);
+                    } else if (changePercent < -1.0) {
+                        signal = 'SELL';
+                        target = (currPrice * 0.95).toFixed(2);
+                        stopLoss = (currPrice * 1.02).toFixed(2);
+                    } else if (Math.abs(changePercent) > 0.2) {
+                        signal = 'WAIT';
+                    } else {
+                        signal = 'NO';
+                    }
+
+                    processedData.push({
+                        s: symbol,
+                        p: prevPrice,
+                        c: currPrice,
+                        chg: changePercent,
+                        sig: signal,
+                        t: target,
+                        sl: stopLoss
+                    });
+
+                    if (signal === 'BUY') buy++;
+                    else if (signal === 'SELL') sell++;
+                    else if (signal === 'WAIT') wait++;
+                }
+            });
+
+            // Update Dashboard
+            document.getElementById('count-buy').innerText = buy;
+            document.getElementById('count-sell').innerText = sell;
+            document.getElementById('count-wait').innerText = wait;
+
+            // Show default view
+            showTable('BUY');
+            alert("பகுப்பாய்வு முடிந்தது!");
+
+        } catch (err) {
+            console.error(err);
+            alert("கோப்பைப் படிப்பதில் பிழை ஏற்பட்டது.");
+        }
+    }
+
+    // 5. Render Table
+    function showTable(filter) {
+        currentFilter = filter;
+        document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+        document.querySelector('.card-'+filter.toLowerCase()).classList.add('active');
+
+        const titles = { 'BUY': 'வாங்க (BUY) பட்டியல்', 'SELL': 'விற்க (SELL) பட்டியல்', 'WAIT': 'காத்திரு (WAIT) பட்டியல்' };
+        document.getElementById('reportTitle').innerText = titles[filter];
+        document.getElementById('reportSection').style.display = 'block';
+
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+
+        const filtered = processedData.filter(d => d.sig === filter);
+
+        filtered.forEach(d => {
+            const chgClass = d.chg > 0 ? 'pos-chg' : (d.chg < 0 ? 'neg-chg' : '');
+            const badgeColor = d.sig === 'BUY' ? 'var(--buy)' : (d.sig === 'SELL' ? 'var(--sell)' : 'var(--wait)');
+            
+            const row = `
+                <tr>
+                    <td style="font-weight:bold">${d.s}</td>
+                    <td>${d.p}</td>
+                    <td>${d.c}</td>
+                    <td class="${chgClass}">${d.chg.toFixed(2)}%</td>
+                    <td style="color:var(--buy); font-weight:bold">${d.t}</td>
+                    <td style="color:var(--sell); font-weight:bold">${d.sl}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+        
+        if (filtered.length === 0) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">இந்த வகைக்கு தரவு இல்லை</td></tr>';
+        
+        // Scroll to report
+        document.getElementById('reportSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // 6. Share WhatsApp
+    function shareWA() {
+        const filtered = processedData.filter(d => d.sig === currentFilter);
+        if (filtered.length === 0) return;
+
+        let msg = `*PRAI Market Report (${currentFilter})*\n`;
+        msg += `Date: ${new Date().toLocaleDateString('ta-IN')}\n\n`;
+
+        filtered.forEach((d,i) => {
+            msg += `${i+1}. *${d.s}*\n`;
+            msg += `   Price: ${d.c}\n`;
+            msg += `   Reason: ${d.chg.toFixed(2)}%\n`;
+            if (currentFilter !== 'WAIT') {
+                msg += `   Tgt: ${d.t} | SL: ${d.sl}\n`;
+            }
+            msg += `\n`;
+        });
+
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+</script>
+
+</body>
+</html>
